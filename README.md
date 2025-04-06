@@ -12,4 +12,6 @@
         * REST API: http://localhost:6333/
         * Web UI: http://localhost:6333/dashboard
     * MCP Serverの実行
+      * `uv python install 3.12`
+      * `uv venv --python=3.12`
       * `uv add mcp-server-qdrant`
