@@ -26,6 +26,36 @@ bash standalone_embed.sh upgrade
   * MilvusのWebUI
     * http://localhost:9091/webui/
   * [mcp-server-milvus](https://github.com/zilliztech/mcp-server-milvus)
+    * mcp-server-milvus/src/mcp_server_milvus/server.py のinsert_dataメソッドを下記の通り修正する
+```python
+async def insert_data(
+    self, collection_name: str, data: dict[str, list[Any]]
+) -> dict[str, Any]:
+    """
+    Insert data into a collection.
+
+    Args:
+        collection_name: Name of collection
+        data: Dictionary mapping field names to lists of values
+    """
+    try:
+        # 入力データをレコードのリストに変換
+        field_names = list(data.keys())
+        num_records = len(data[field_names[0]])
+        records = []
+
+        for i in range(num_records):
+            record = {}
+            for field in field_names:
+                record[field] = data[field][i]
+            records.append(record)
+
+        # レコードのリストを挿入
+        result = self.client.insert(collection_name=collection_name, data=records)
+        return result
+    except Exception as e:
+        raise ValueError(f"Insert failed: {str(e)}")
+```
 
 Claude Desktopでは使用可能だがGitHub Copilotではエラーとなり使用できないため下記は使用しない。
 * Qdrant MCP Serverを使用可能にする
