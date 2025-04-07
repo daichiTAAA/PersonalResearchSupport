@@ -1,4 +1,4 @@
-* Exa MCP Serverを使用可能にする
+* Exa MCP Serverを使用可能にする (Enable Exa MCP Server)
   * [exa-mcp-server](https://github.com/exa-labs/exa-mcp-server)
 * neo4j MCP Serverを使用可能にする
   * neo4jデスクトップをインストールする
