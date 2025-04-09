@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PgVector RAG Web Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .document-card {
+            margin-bottom: 15px;
+        }
+        .result-section {
+            margin-top: 30px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .source-item {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .similarity-badge {
+            font-size: 0.8em;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <h1 class="mb-4">PgVector RAG Web Interface</h1>
+        
+        <div class="row">
+            <!-- Document Upload Section -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Document Upload</h5>
+                    </div>
+                    <div class="card-body">
+                        <form action="/upload" method="post" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="file" class="form-label">Select Document</label>
+                                <input type="file" class="form-control" id="file" name="file" required>
+                                <div class="form-text">Supported formats: PDF, TXT, MD, CSV, JSON</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Upload & Process</button>
+                        </form>
+                        
+                        {% if upload_result %}
+                        <div class="alert {% if upload_result.status == 'success' %}alert-success{% else %}alert-danger{% endif %} mt-3">
+                            {{ upload_result.message }}
+                            {% if upload_result.chunks_created %}
+                            <br>Chunks created: {{ upload_result.chunks_created }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Question Section -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Ask a Question</h5>
+                    </div>
+                    <div class="card-body">
+                        <form action="/ask" method="post">
+                            <div class="mb-3">
+                                <label for="question" class="form-label">Your Question</label>
+                                <input type="text" class="form-control" id="question" name="question" 
+                                       required {% if question %}value="{{ question }}"{% endif %}>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Ask</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        {% if rag_result %}
+        <div class="result-section">
+            <h4>Answer</h4>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <p>{{ rag_result.answer }}</p>
+                </div>
+            </div>
+            
+            {% if rag_result.sources and rag_result.sources|length > 0 %}
+            <h5>Sources</h5>
+            {% for source in rag_result.sources %}
+            <div class="source-item">
+                <div class="d-flex justify-content-between">
+                    <strong>{{ source.name }}</strong>
+                    <span class="badge bg-info similarity-badge">Similarity: {{ "%.2f"|format(source.similarity) }}</span>
+                </div>
+                <div class="mt-2">
+                    <pre>{{ source.metadata|tojson(indent=2) }}</pre>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Search Results Section -->
+        {% if search_results %}
+        <div class="result-section">
+            <h4>Search Results for "{{ search_query }}"</h4>
+            {% for doc in search_results %}
+            <div class="source-item">
+                <div class="d-flex justify-content-between">
+                    <strong>{{ doc.name }}</strong>
+                    <span class="badge bg-info similarity-badge">Similarity: {{ "%.2f"|format(doc.similarity) }}</span>
+                </div>
+                <div class="mt-2">
+                    <p>{{ doc.content }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Documents List -->
+        <h4 class="mt-4">Loaded Documents</h4>
+        {% if documents and documents|length > 0 %}
+        <div class="row">
+            {% for doc in documents %}
+            <div class="col-md-4">
+                <div class="card document-card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ doc.name }}</h5>
+                        <p class="card-text">
+                            Type: {{ doc.type }}<br>
+                            Chunks: {{ doc.chunk_count }}
+                        </p>
+                        <form action="/delete/{{ doc.name }}" method="post">
+                            <button type="submit" class="btn btn-sm btn-danger" 
+                                    onclick="return confirm('Are you sure you want to delete this document?')">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">No documents have been loaded yet.</div>
+        {% endif %}
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

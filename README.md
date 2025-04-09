@@ -6,6 +6,8 @@
   * neo4jデスクトップの左上の「+」をクリックして新しいDBを作成する
   * [mcp-neo4j-cypher](https://github.com/neo4j-contrib/mcp-neo4j/tree/main/servers/mcp-neo4j-cypher)
     * `uv add mcp-neo4j-cypher`
+  * neo4jのWeb UI
+    * http://localhost:7474/browser/
 * Milvus MCP Serverを使用可能にする
   * [Milvus](https://milvus.io/)をインストールする
     * [Milvusのインストール](https://milvus.io/docs/install_standalone-docker.md)
