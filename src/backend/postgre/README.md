@@ -13,9 +13,9 @@
 ## セットアップ
 
 ### 前提条件
-
+- uvがインストールされていること
 - Docker と Docker Compose
-- Python 3.9+
+- Python 3.12+
 - OpenAI API キー
 
 ### インストール手順
@@ -23,8 +23,7 @@
 1. リポジトリをクローン
 ```bash
 git clone <this-repository-url>
-cd path/to/your/repository
-cd src/backend/postgre
+cd ~/PersonalResearchSupport/src/backend/postgre
 ```
 
 2. 環境変数の設定
@@ -35,18 +34,18 @@ cp .env.example .env
 
 3. Docker Composeでデータベースを起動
 ```bash
-docker compose up -d
+cd ~/PersonalResearchSupport/src/backend/postgre && docker compose up -d
 ```
 
 4. 必要なPythonパッケージをインストール
 ```bash
-uv sync
+cd ~/PersonalResearchSupport/src/backend/postgre && uv sync
 ```
 
 ### MCP サーバーの起動
 
 ```bash
-uvx run server.py
+cd ~/PersonalResearchSupport/src/backend/postgre && uv run python server.py
 ```
 
 ## 使用方法
@@ -59,8 +58,8 @@ uvx run server.py
 {
   "mcpServers": {
     "pgvector_rag": {
-      "command": "uvx",
-      "args": ["run", "/path/to/server.py"]
+      "command": "uv",
+      "args": ["run", "~/PersonalResearchSupport/src/backend/postgre/server.py"]
     }
   }
 }
@@ -104,9 +103,9 @@ ask_rag(question, limit=5)
 #### Web UIの実行方法
 Web UIを使用して、ドキュメントのアップロードや質問応答を行うことができます。
 ```bash
-uvx run app.py
+cd ~/PersonalResearchSupport/src/backend/postgre && uv run streamlit run webui/app.py
 ```
-Webブラウザで `http://localhost:8080` にアクセスします。
+Webブラウザで `http://localhost:8501` にアクセスします。
 
 #### 補足
 

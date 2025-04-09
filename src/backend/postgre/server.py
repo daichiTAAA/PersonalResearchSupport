@@ -29,7 +29,7 @@ DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # OpenAI設定
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
 
 # OpenAIクライアントの初期化
@@ -95,6 +95,136 @@ def init_database():
     conn.close()
 
 
+# データベーステーブルを削除して再作成する関数
+def reset_database():
+    """
+    Drop and recreate the documents table and its associated index.
+    This will delete all stored documents and embeddings.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        # ドキュメントテーブルの削除
+        cur.execute("DROP TABLE IF EXISTS documents;")
+
+        # pgvector拡張機能が存在しない場合は作成
+        cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+
+        # テーブルの再作成
+        cur.execute(
+            f"""
+        CREATE TABLE documents (
+            id SERIAL PRIMARY KEY,
+            name TEXT,
+            content TEXT,
+            metadata JSONB,
+            embedding vector({EMBEDDING_DIMENSIONS})
+        );
+        """
+        )
+
+        # インデックス作成（ANN検索用）
+        try:
+            # 新しいバージョン用の構文を試行
+            cur.execute(
+                f"""
+            CREATE INDEX documents_embedding_idx 
+            ON documents 
+            USING ivfflat (embedding vector_cosine_ops) 
+            WITH (lists = 100);
+            """
+            )
+        except Exception as index_error:
+            # インデックス作成のエラーをロールバック
+            conn.rollback()
+            try:
+                # 代替方法1: 単純なINDEX作成
+                cur.execute(
+                    f"""
+                CREATE INDEX documents_embedding_idx 
+                ON documents 
+                USING vector_ip (embedding);
+                """
+                )
+            except Exception:
+                conn.rollback()
+                # 代替方法2: オペレータクラスを明示的に指定せずインデックス作成
+                try:
+                    cur.execute(
+                        f"""
+                    CREATE INDEX documents_embedding_idx 
+                    ON documents (embedding);
+                    """
+                    )
+                except Exception:
+                    conn.rollback()
+                    # それでもダメな場合はインデックスなしで続行
+                    pass
+
+        conn.commit()
+        return {"status": "success", "message": "データベースを初期化しました"}
+    except Exception as e:
+        conn.rollback()
+        return {
+            "status": "error",
+            "message": f"データベースの初期化中にエラーが発生しました: {str(e)}",
+        }
+    finally:
+        cur.close()
+        conn.close()
+
+
+# テーブルデータの全件取得
+def get_all_documents(limit=1000, offset=0):
+    """
+    Get all documents from the database with pagination.
+
+    Args:
+        limit: Maximum number of records to return
+        offset: Number of records to skip
+
+    Returns:
+        List of documents
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # ドキュメント数の取得
+        cur.execute("SELECT COUNT(*) FROM documents")
+        total_count = cur.fetchone()[0]
+
+        # ドキュメントの取得（ページネーション付き）
+        cur.execute(
+            """
+            SELECT id, name, content, metadata
+            FROM documents
+            ORDER BY id
+            LIMIT %s OFFSET %s
+            """,
+            (limit, offset),
+        )
+
+        results = cur.fetchall()
+        documents = []
+
+        for doc_id, name, content, metadata in results:
+            documents.append(
+                {"id": doc_id, "name": name, "content": content, "metadata": metadata}
+            )
+
+        cur.close()
+        conn.close()
+
+        return {"status": "success", "total": total_count, "documents": documents}
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"ドキュメントの取得中にエラーが発生しました: {str(e)}",
+        }
+
+
 # ファイルを読み込んでテキストを抽出する関数
 def extract_text_from_file(file_path):
     file_path = Path(file_path)
@@ -150,7 +280,7 @@ def split_text(text, chunk_size=1000, chunk_overlap=200):
 
 
 # ドキュメント処理：ファイルからテキスト抽出、分割、埋め込み
-@app.tool
+@app.tool()
 def process_document(
     filepath: str,
     chunk_size: int = 1000,
@@ -236,7 +366,7 @@ def process_document(
 
 
 # 類似ドキュメントの検索
-@app.tool
+@app.tool()
 def search_similar_documents(query: str, limit: int = 5) -> list:
     """
     Search for documents similar to the query text.
@@ -291,7 +421,7 @@ def search_similar_documents(query: str, limit: int = 5) -> list:
 
 
 # ドキュメントの削除
-@app.tool
+@app.tool()
 def delete_document(document_name: str) -> dict:
     """
     Delete documents by name.
@@ -333,7 +463,7 @@ def delete_document(document_name: str) -> dict:
 
 
 # ドキュメントの一覧取得
-@app.tool
+@app.tool()
 def list_documents() -> list:
     """
     List all documents in the database grouped by name.
@@ -378,7 +508,7 @@ def list_documents() -> list:
 
 
 # RAG質問応答
-@app.tool
+@app.tool()
 def ask_rag(question: str, limit: int = 5) -> dict:
     """
     Ask a question and get an answer using RAG (Retrieval-Augmented Generation).
@@ -431,13 +561,42 @@ def ask_rag(question: str, limit: int = 5) -> dict:
         ]
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo", messages=messages, temperature=0.3, max_tokens=500
+            model="gpt-4o", messages=messages, temperature=0.3, max_tokens=500
         )
 
         return {"answer": response.choices[0].message.content, "sources": sources}
 
     except Exception as e:
         return {"status": "error", "message": f"Error in RAG process: {str(e)}"}
+
+
+# データベースリセット用のツール
+@app.tool()
+def reset_database_tool() -> dict:
+    """
+    Reset the database by dropping and recreating the documents table.
+    WARNING: This will delete all stored documents and embeddings.
+
+    Returns:
+        Status of the operation
+    """
+    return reset_database()
+
+
+# ドキュメント全件取得用のツール
+@app.tool()
+def get_all_documents_tool(limit: int = 1000, offset: int = 0) -> dict:
+    """
+    Get all documents from the database with pagination.
+
+    Args:
+        limit: Maximum number of records to return (default: 1000)
+        offset: Number of records to skip (default: 0)
+
+    Returns:
+        List of documents with pagination metadata
+    """
+    return get_all_documents(limit, offset)
 
 
 # データベースの初期化
