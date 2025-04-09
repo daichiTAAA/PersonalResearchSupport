@@ -599,6 +599,144 @@ def get_all_documents_tool(limit: int = 1000, offset: int = 0) -> dict:
     return get_all_documents(limit, offset)
 
 
+from literature_navigator import LiteratureNavigator
+
+literature_navigator = LiteratureNavigator()
+
+@app.tool()
+def semantic_search_tool(query: str, limit: int = 20) -> dict:
+    """
+    自然言語クエリに基づいて意味検索を実行する
+
+    Args:
+        query: 検索クエリ
+        limit: 取得する最大件数
+
+    Returns:
+        検索結果のリスト
+    """
+    try:
+        results = literature_navigator.semantic_search(query, limit=limit)
+        return {"status": "success", "results": results}
+    except Exception as e:
+        return {"status": "error", "message": f"意味検索中にエラーが発生しました: {str(e)}"}
+
+@app.tool()
+def cluster_documents_tool(query: str, n_clusters: int = 5, limit: int = 50) -> dict:
+    """
+    検索結果をクラスタリングして関連トピックごとに分類する
+
+    Args:
+        query: 検索クエリ
+        n_clusters: クラスター数
+        limit: 検索する最大ドキュメント数
+
+    Returns:
+        クラスタリング結果
+    """
+    try:
+        documents = literature_navigator.semantic_search(query, limit=limit)
+        
+        clusters = literature_navigator.cluster_results(documents, n_clusters=n_clusters)
+        
+        return {"status": "success", "clusters": clusters}
+    except Exception as e:
+        return {"status": "error", "message": f"クラスタリング中にエラーが発生しました: {str(e)}"}
+
+@app.tool()
+def literature_qa_tool(question: str, context_docs: list = None, limit: int = 5) -> dict:
+    """
+    文献ベースで質問に回答する
+
+    Args:
+        question: 質問
+        context_docs: コンテキストとして使用するドキュメントのID（指定がない場合は検索）
+        limit: 検索する最大ドキュメント数
+
+    Returns:
+        回答と出典情報
+    """
+    try:
+        result = literature_navigator.ask_literature(question, context_docs, limit)
+        return {"status": "success", "result": result}
+    except Exception as e:
+        return {"status": "error", "message": f"文献Q&A中にエラーが発生しました: {str(e)}"}
+
+@app.tool()
+def compare_papers_tool(paper_id1: str, paper_id2: str, aspect: str = None) -> dict:
+    """
+    2つの論文の違いを説明する
+
+    Args:
+        paper_id1: 1つ目の論文ID
+        paper_id2: 2つ目の論文ID
+        aspect: 比較する観点（手法、結果など）
+
+    Returns:
+        違いの説明
+    """
+    try:
+        explanation = literature_navigator.explain_difference(paper_id1, paper_id2, aspect)
+        return {"status": "success", "explanation": explanation}
+    except Exception as e:
+        return {"status": "error", "message": f"論文比較中にエラーが発生しました: {str(e)}"}
+
+@app.tool()
+def check_research_coverage_tool(research_topic: str, reviewed_papers: list = None) -> dict:
+    """
+    研究トピックに対する文献調査の網羅性をチェックする
+
+    Args:
+        research_topic: 研究トピック
+        reviewed_papers: レビュー済みの論文ID（指定がない場合は全文献から判断）
+
+    Returns:
+        網羅性レポート
+    """
+    try:
+        report = literature_navigator.check_coverage(research_topic, reviewed_papers)
+        return {"status": "success", "report": report}
+    except Exception as e:
+        return {"status": "error", "message": f"網羅性チェック中にエラーが発生しました: {str(e)}"}
+
+@app.tool()
+def recommend_papers_tool(research_topic: str, reviewed_papers: list = None, limit: int = 10) -> dict:
+    """
+    研究トピックに基づいて重要論文を推薦する
+
+    Args:
+        research_topic: 研究トピック
+        reviewed_papers: レビュー済みの論文ID（除外リスト）
+        limit: 推薦する最大論文数
+
+    Returns:
+        推薦論文リスト
+    """
+    try:
+        recommendations = literature_navigator.recommend_papers(research_topic, reviewed_papers, limit)
+        return {"status": "success", "recommendations": recommendations}
+    except Exception as e:
+        return {"status": "error", "message": f"論文推薦中にエラーが発生しました: {str(e)}"}
+
+@app.tool()
+def identify_unexplored_topics_tool(research_topic: str, reviewed_papers: list = None) -> dict:
+    """
+    研究トピックに関連する未調査トピックを特定する
+
+    Args:
+        research_topic: 研究トピック
+        reviewed_papers: レビュー済みの論文ID
+
+    Returns:
+        未調査トピックのリスト
+    """
+    try:
+        topics = literature_navigator.identify_unexplored_topics(research_topic, reviewed_papers)
+        return {"status": "success", "topics": topics}
+    except Exception as e:
+        return {"status": "error", "message": f"未調査トピック特定中にエラーが発生しました: {str(e)}"}
+
+
 # データベースの初期化
 init_database()
 

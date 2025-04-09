@@ -13,7 +13,8 @@ import tempfile
 
 # server.py をインポートできるようにパスを追加
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from server import process_document
+from server import process_document, semantic_search_tool, cluster_documents_tool, literature_qa_tool, compare_papers_tool, check_research_coverage_tool, recommend_papers_tool, identify_unexplored_topics_tool
+from literature_navigator_ui import render_literature_navigator
 
 # 環境変数のロード
 load_dotenv()
@@ -257,6 +258,7 @@ def render_sidebar():
             [
                 "ダッシュボード",
                 "ドキュメント管理",
+                "文献ナビゲーター",
                 "データベース情報",
             ],
         )
@@ -625,6 +627,8 @@ def main():
         render_dashboard()
     elif menu == "ドキュメント管理":
         render_document_management()
+    elif menu == "文献ナビゲーター":
+        render_literature_navigator(get_db_connection, get_documents)
     elif menu == "データベース情報":
         render_database_info()
 
